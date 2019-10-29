@@ -57,6 +57,96 @@ all_proj <- unique(c(castori_proj, vdb_proj, annie_proj, me_ts_proj))
 Make sure fully connected to all servers
 
 ```{r}
-# 
+# list all servers
+servers <- tibble(server = Sys.glob('/Volumes/*') ) %>% 
+  filter(!str_detect(server, 'Macintosh|castor')) %>% 
+  mutate(folder = if_else(str_detect(server, 'vandenBrinkLab'), str_glue('{server}/deep_sequencing'),str_glue('{server}/FASTQ')))
+
+# find all of the projects in all of the servers
+
+ALL <- servers %>% 
+  pull(folder) %>% 
+  map_dfr(function(f){
+    all_proj %>% 
+      set_names(all_proj) %>% 
+      imap_dfr( ~ Sys.glob(str_glue('{f}/{..1}/*/*')) %>% 
+             data_frame %>% 
+              mutate(..2)) %>% 
+      rename(directory = names(.)[1],
+             projectID = names(.)[2])
+  }) %>% 
+  # trying to remove the duplicated copied samples here
+  mutate(sample_folder = str_extract(directory, 'Sample_.+$')) %>% 
+  distinct(sample_folder, .keep_all = T)
+```
+
+## Create the sampleid from the sample_folder and clean the FMT sampleid here
+
+```{r}
+splitFMT <- ALL %>% 
+   mutate(sampleid = str_replace(sample_folder, 'Sample_',''),
+          sampleid = str_replace(sampleid, '_IGO_.+$','')) %>% 
+  split(f = str_detect(.$sampleid, '^FMT'))
+
+# below the cleaned sampleid df
+ALL_cleaned <- bind_rows(
+  splitFMT[['TRUE']] %>% 
+    separate(sampleid, into = c('other','part'), sep= 'FMT') %>% 
+    # remove the _ cuz its never in the sampleid
+    mutate(part = str_replace(part, '^_','')) %>% 
+    # str_extract to get the numbers and letters individually
+    mutate(num = str_extract(part, '[0-9]+'),
+           lett = str_extract(part, '[aA-zZ]+')) %>% 
+    select(-other, -part) %>% 
+    mutate(num = str_pad(num, 4, 'left', '0'),
+           sampleid = str_glue('FMT.{num}{lett}')) %>% 
+    select(directory, projectID, sampleid),
+  splitFMT[['FALSE']] %>% 
+    select(directory, projectID, sampleid)
+  )
+```
+
+## Continue cleaning on some really messy weird sampleids format
+
+```{r}
+# the 34/105 samples are wrongly named
+c34 <- ALL_cleaned %>% 
+  split(f = str_detect(.$sampleid, '^34'))
+
+ALL_cleaned <- bind_rows(
+  c34[['FALSE']],
+  c34[['TRUE']] %>% 
+    mutate(sampleid = str_glue('FMT.00{sampleid}'))
+)
+
+c105 <- ALL_cleaned %>% 
+  split(f = str_detect(.$sampleid, '^105'))
+
+ALL_cleaned <- bind_rows(
+  c105[['FALSE']],
+  c105[['TRUE']] %>% 
+    mutate(sampleid = str_glue('FMT.0{sampleid}'))
+)
+
+# remove the samples with the Y... FC... MM... SOHN
+ALL_cleaned <- ALL_cleaned %>% 
+  filter(!str_detect(sampleid, '^Y|^MM|^FC|SOHN'))
+
+
+# for some weird samples in 07051_C remove the leading X and the part after the undersore
+ALL_cleaned <- ALL_cleaned %>% 
+  mutate(sampleid = str_replace(sampleid, '^X', ''),
+         sampleid = str_replace(sampleid, '-.+$', ''),
+         sampleid = str_replace(sampleid, '_.+$', '')) 
+```
+
+
+```{r}
+# tsoni and Melody server  some projects need to be validated whether they are shotgun data
+ALL_cleaned %>% 
+  filter(str_detect(directory, 'peledj|smithm4')) %>% 
+  arrange(directory, sampleid)  %>% 
+  write_csv('../output/tm_samples.csv')
+
 ```
 
