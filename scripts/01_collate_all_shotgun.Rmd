@@ -1,0 +1,62 @@
+---
+title: "01_collate_from_all_server_shotgun"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+```
+
+## Gather project ID number from different spreadsheets
+
+```{r}
+#  castoricenter server 
+castori_proj <- read_excel('/Volumes/castoricenter/Human.Sequencing.Data/Human.Shotgun.Sequenced.xlsx') %>% 
+  # there are pending samples that are currently being sequenced
+  filter(`Shotgun.Sequenced` == 'yes') %>% 
+  distinct(`iGO.Project.Number`) %>% 
+  pull(`iGO.Project.Number`)  
+
+# Gabe  
+vdb_proj <- read_excel('../data/VDB.Human.Shotgun.Sequenced.xlsx') %>% 
+  transmute(iGO_Project_Number = `iGO.Project.Number`)  %>% 
+  distinct(iGO_Project_Number) %>% 
+  mutate(iGO_Project_Number = str_glue('Project_{iGO_Project_Number}')) %>% 
+  pull(iGO_Project_Number)
+
+# Annie
+annie_proj <- paste0('Project_', c(
+  '08788',
+  '08788_B',
+  '08788_C',
+  '09050',
+  '09102',
+  '07051_C',
+  '08290',
+  '09099_B'), sep = '' )
+
+# Melody and Tsoni's server . probably some of them have been copied to vdb server. will remove duplicates later
+
+me_ts_proj <- c('/Volumes/smithm4/FASTQ/','/Volumes/peledj/FASTQ/') %>% 
+  map_dfr(~ Sys.glob(str_glue('{.}*')) %>% 
+            data_frame() %>% 
+            rename( path = names(.)[1])) %>% 
+  transmute(iGO_Project_Number = str_extract(path, 'Project_.+$')) %>% 
+  pull(iGO_Project_Number)
+
+
+# all the unique project ID numbers 
+all_proj <- unique(c(castori_proj, vdb_proj, annie_proj, me_ts_proj))
+  
+```
+
+## Retrieve the file path of the samples from servers
+
+Make sure fully connected to all servers
+
+```{r}
+# 
+```
+
