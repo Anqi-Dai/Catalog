@@ -96,7 +96,8 @@ ALL_cleaned <- bind_rows(
     mutate(part = str_replace(part, '^_','')) %>% 
     # str_extract to get the numbers and letters individually
     mutate(num = str_extract(part, '[0-9]+'),
-           lett = str_extract(part, '[aA-zZ]+')) %>% 
+           lett = str_extract(part, '[aA-zZ]+'),
+           num = str_remove(num, '^0+')) %>% 
     select(-other, -part) %>% 
     mutate(num = str_pad(num, 4, 'left', '0'),
            sampleid = str_glue('FMT.{num}{lett}')) %>% 
@@ -104,6 +105,8 @@ ALL_cleaned <- bind_rows(
   splitFMT[['FALSE']] %>% 
     select(directory, projectID, sampleid)
   )
+
+
 ```
 
 ## Continue cleaning on some really messy weird sampleids format
@@ -119,13 +122,25 @@ ALL_cleaned <- bind_rows(
     mutate(sampleid = str_glue('FMT.00{sampleid}'))
 )
 
-c105 <- ALL_cleaned %>% 
-  split(f = str_detect(.$sampleid, '^105'))
 
-ALL_cleaned <- bind_rows(
-  c105[['FALSE']],
-  c105[['TRUE']] %>% 
-    mutate(sampleid = str_glue('FMT.0{sampleid}'))
+# there is one sample 1058C it's a valid sample by itself, shouldn't add the below to it
+# the below should only work for the samples in Project_07976
+split_proj <- ALL_cleaned %>% 
+  split(f = str_detect(.$projectID, 'Project_07976'))
+ 
+
+ALL_cleaned <-  bind_rows(
+  split_proj %>% 
+    pluck('FALSE'),
+  bind_rows(split_proj %>% 
+    pluck('TRUE') %>% 
+    split(f = str_detect(.$sampleid, '^105')) %>% 
+    pluck('TRUE') %>% 
+    mutate(sampleid = str_glue('FMT.0{sampleid}')),
+  split_proj %>% 
+    pluck('TRUE') %>% 
+    split(f = str_detect(.$sampleid, '^105')) %>% 
+    pluck('FALSE'))
 )
 
 # remove the samples with the Y... FC... MM... SOHN
@@ -138,15 +153,44 @@ ALL_cleaned <- ALL_cleaned %>%
   mutate(sampleid = str_replace(sampleid, '^X', ''),
          sampleid = str_replace(sampleid, '-.+$', ''),
          sampleid = str_replace(sampleid, '_.+$', '')) 
-```
 
+# remove something in the peledj smithm4 server 
+ALL_cleaned <- ALL_cleaned %>% 
+  filter(!projectID %in% c('Project_09100','Project_09684_B','Project_10195', 'Project_08868', 
+                           'Project_08899', 'Project_08867', 'Project_08952', 'Project_08989', 'Project_09023'))
+
+
+# theres some more cleaning to do, for example some samples in project 08290 should have FMT but missed that
+split_8290 <- ALL_cleaned %>% 
+  split(f = str_detect(.$projectID, 'Project_08290'))
+
+ALL_cleaned <-  bind_rows(
+  split_8290 %>% 
+    pluck('FALSE'),
+  bind_rows(split_8290 %>% 
+    pluck('TRUE') %>% 
+    split(f = str_detect(.$sampleid, '^0')) %>% 
+    pluck('TRUE') %>% 
+    mutate(sampleid = str_glue('FMT.{sampleid}')),
+  split_8290 %>% 
+    pluck('TRUE') %>% 
+    split(f = str_detect(.$sampleid, '^0')) %>% 
+    pluck('FALSE'))
+)
+
+
+# there is really this weird sample 1058C not sure why my algorithm would add "FMT" in front of it
+
+```
 
 ```{r}
-# tsoni and Melody server  some projects need to be validated whether they are shotgun data
+# write out the final cleaned table
+
 ALL_cleaned %>% 
-  filter(str_detect(directory, 'peledj|smithm4')) %>% 
-  arrange(directory, sampleid)  %>% 
-  write_csv('../output/tm_samples.csv')
+  write_csv('/Volumes/vandenBrinkLab/Angel_Dai/Full_human_shotgun_catalog/full_human_shotgun_catalog_updated.csv')
+
+
 
 ```
+
 

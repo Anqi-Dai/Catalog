@@ -1,9 +1,85 @@
 ---
 title: "Match with clinical table"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(kableExtra)
+source('~/MSK/work/microbiome_db/SQL/scripts/get_data_from_query_OTU.R')
+```
+
+To have the access to the castori_ag table run the two scripts in the db folder
+
+```{r}
+
+ALL_cleaned <- read_csv('../output/ALL_cleaned.csv')
+
+# how many total human shotgun
+ALL_cleaned %>% 
+  nrow
+
+# how many unique shotgun samples
+ALL_cleaned %>% 
+  distinct(sampleid, .keep_all = T) %>%
+  nrow
+```
+
+```{r}
+# compare with Eric's data
+Eric <- get_data_from_query_OTU(0,'shotgun_sample_lookup_ag') 
+
+eric_same <- ALL_cleaned %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  inner_join(Eric %>% 
+    distinct(sampleid, .keep_all = T), by  = 'sampleid')  
+
+setdiff(Eric$sampleid, eric_same$sampleid)# there is only one mismatch and that one Eric has it wrong
+ 
+```
+
+```{r}
+
+samples_castori <- get_data_from_query_OTU(0,'samples_castori_ag') 
+
+# how many successfully join with the castori table
+join_clinical <- ALL_cleaned %>% 
+  inner_join(samples_castori , by  = 'sampleid') 
+
+join_clinical %>% nrow
+
+# to verify whether the duplicates have been removed
+actually_overlap_castori <- ALL_cleaned %>% 
+  distinct(sampleid) %>% 
+  inner_join(samples_castori %>% 
+    distinct(sampleid), by  = 'sampleid')  
+```
+
+
+```{r}
+join_clinical %>% 
+  distinct(mrn) %>% 
+  nrow
+   
+not_castori <- ALL_cleaned %>% 
+  left_join(samples_castori , by  ='sampleid') %>% 
+  # the ones that are doubtful to be shogtun 
+  filter(is.na(key)) %>% 
+  select(directory:sampleid) %>% 
+  arrange( projectID , sampleid)
+
+not_castori %>% nrow
+
+not_castori %>% 
+  kable(caption = 'human shotgun samples we have on record but not in castori center') %>% 
+  kable_styling(full_width = F, position = 'left')
+
 ```
 
