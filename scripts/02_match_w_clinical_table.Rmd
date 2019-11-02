@@ -79,7 +79,10 @@ not_castori %>% nrow
 
 not_castori %>% 
   kable(caption = 'human shotgun samples we have on record but not in castori center') %>% 
-  kable_styling(full_width = F, position = 'left')
+  kable_styling(full_width = F, position = 'left') 
 
+
+not_castori %>% 
+  write_csv('../data/not_castori.csv')
 ```
 
