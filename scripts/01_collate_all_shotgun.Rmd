@@ -7,6 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(readxl)
+library(kableExtra)
 ```
 
 ## Gather project ID number from different spreadsheets
@@ -39,7 +40,7 @@ annie_proj <- paste0('Project_', c(
 
 # Melody and Tsoni's server . probably some of them have been copied to vdb server. will remove duplicates later
 
-me_ts_proj <- c('/Volumes/smithm4/FASTQ/','/Volumes/peledj/FASTQ/') %>% 
+other_proj <- c('/Volumes/smithm4/FASTQ/','/Volumes/peledj/FASTQ/', '/Volumes/ponced/FASTQ/') %>% 
   map_dfr(~ Sys.glob(str_glue('{.}*')) %>% 
             data_frame() %>% 
             rename( path = names(.)[1])) %>% 
@@ -48,7 +49,7 @@ me_ts_proj <- c('/Volumes/smithm4/FASTQ/','/Volumes/peledj/FASTQ/') %>%
 
 
 # all the unique project ID numbers 
-all_proj <- unique(c(castori_proj, vdb_proj, annie_proj, me_ts_proj))
+all_proj <- unique(c(castori_proj, vdb_proj, annie_proj, other_proj))
   
 ```
 
@@ -76,7 +77,9 @@ ALL <- servers %>%
              projectID = names(.)[2])
   }) %>% 
   # trying to remove the duplicated copied samples here
-  mutate(sample_folder = str_extract(directory, 'Sample_.+$')) %>% 
+  mutate(sample_folder = str_extract(directory, 'Sample_.+$'),
+         fid = str_replace(sample_folder, 'Sample_',''),
+         fid = str_replace(fid, '_IGO_.+$','')) %>% 
   distinct(sample_folder, .keep_all = T)
 ```
 
@@ -101,9 +104,9 @@ ALL_cleaned <- bind_rows(
     select(-other, -part) %>% 
     mutate(num = str_pad(num, 4, 'left', '0'),
            sampleid = str_glue('FMT.{num}{lett}')) %>% 
-    select(directory, projectID, sampleid),
+    select(directory, projectID, sampleid, fid),
   splitFMT[['FALSE']] %>% 
-    select(directory, projectID, sampleid)
+    select(directory, projectID, sampleid, fid)
   )
 
 
@@ -189,8 +192,24 @@ ALL_cleaned <-  bind_rows(
 ALL_cleaned %>% 
   write_csv('/Volumes/vandenBrinkLab/Angel_Dai/Full_human_shotgun_catalog/full_human_shotgun_catalog_updated.csv')
 
+```
+
+```{r}
+ALL_cleaned <- read_csv('/Volumes/vandenBrinkLab/Angel_Dai/Full_human_shotgun_catalog/full_human_shotgun_catalog_updated.csv') %>% 
+  mutate(fid = str_replace(directory, '^.+Sample_',''),
+         fid = str_replace(fid, '_IGO.+$',''))
 
 
+ALL_cleaned %>% 
+  head(10) %>% 
+  kable(caption = 'A glimpse of the finalized catalog') %>% 
+  kable_styling(full_width = F, position = 'left')
+```
+```{r}
+read_csv('~/projects/Doris/analysis/data/shotgun_lookup.csv') %>% 
+  head(10) %>% 
+  kable(caption = 'Previous shotgun lookup table') %>% 
+  kable_styling(full_width = F, position = 'left')
 ```
 
 

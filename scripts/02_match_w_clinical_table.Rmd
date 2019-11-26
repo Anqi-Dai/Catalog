@@ -18,9 +18,11 @@ source('~/MSK/work/microbiome_db/SQL/scripts/get_data_from_query_OTU.R')
 
 To have the access to the castori_ag table run the two scripts in the db folder
 
-```{r}
+## Load the most updated catalog
 
-ALL_cleaned <- read_csv('../output/ALL_cleaned.csv')
+```{r}
+# load the most updated catalog
+ALL_cleaned <- read_csv('/Volumes/vandenBrinkLab/Angel_Dai/Full_human_shotgun_catalog/full_human_shotgun_catalog_updated.csv')
 
 # how many total human shotgun
 ALL_cleaned %>% 
@@ -45,8 +47,10 @@ setdiff(Eric$sampleid, eric_same$sampleid)# there is only one mismatch and that 
  
 ```
 
-```{r}
 
+## Join with castoricenter table
+
+```{r}
 samples_castori <- get_data_from_query_OTU(0,'samples_castori_ag') 
 
 # how many successfully join with the castori table
@@ -55,11 +59,28 @@ join_clinical <- ALL_cleaned %>%
 
 join_clinical %>% nrow
 
+# output the table for quicker access
+join_clinical %>% 
+  write_csv('../output/join_castori.csv')
+
+# the MRNs of the above table
+join_clinical %>% 
+  distinct(mrn) %>% 
+  write_csv('../output/MRN_of_current_shotgun_343.csv')
+  
+
 # to verify whether the duplicates have been removed
 actually_overlap_castori <- ALL_cleaned %>% 
   distinct(sampleid) %>% 
   inner_join(samples_castori %>% 
-    distinct(sampleid), by  = 'sampleid')  
+    distinct(sampleid,.keep_all = T), by  = 'sampleid')  
+
+
+join_clinical %>% 
+  kable() %>% 
+  kable_styling(full_width = F) %>% 
+  head() %>% 
+  save_kable('../data/in_castori.html', self_contained = T)
 ```
 
 
