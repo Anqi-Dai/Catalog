@@ -213,3 +213,18 @@ read_csv('~/projects/Doris/analysis/data/shotgun_lookup.csv') %>%
 ```
 
 
+
+```{r}
+# checking whether a list of samples are already shotgun sequenced. 
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database('shotgun_lookup_ad')
+samps <- read_table('~/Downloads/samples.txt', col_names = F)
+
+shotgun_lookup_ad %>% 
+  filter(sampleid %in% samps$X1) %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  write_csv('../data/Chen_request.csv')
+
+```
+
