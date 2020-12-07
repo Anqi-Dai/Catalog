@@ -1,0 +1,101 @@
+---
+title: "A function to get new shotgun sample info and then update the lookup table"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+A function to get new shotgun sample info and then update the lookup table
+
+```{r}
+# the current shotgun lookup table 
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database('shotgun_lookup_ad')
+```
+
+**BE SURE TO CONNECT TO ALL SERVERS BEFORE LOOKING FOR ANYTHING!!!!!**
+
+```{r}
+# input: 
+# dir could be "/Volumes/ponced/FASTQ/" or "/Volumes/vandenBrinkLab/deep_sequencing"
+# projectid: "Project_11280"
+
+# output: a table in the format of shotgun_lookup_ad with 4 columns: directory, projectID, sampleid, fid
+
+# NEEDS TO MANUALLY CHECK THE SAPMLEID THAT IS DERIVED FROM THE FID, COULD IT POSSIBLY BE THE REAL SAMPLEID?
+# THIS WORKS BEST WHEN PROCESSING SAMPELS FROM GABE SINCE EMILY HAS A WELL KEPT TABLE I CAN USE 
+
+new_shotgun_sample_tb <- function(projectid_, dir_){
+  
+  ret =  dir_ %>% 
+    map_dfr(function(f){
+      projectid_ %>% 
+        set_names(projectid_) %>% 
+        imap_dfr( ~ Sys.glob(str_glue('{f}/{..1}/*/*')) %>% 
+               tibble %>% 
+                mutate(..2)) %>% 
+        rename(directory = names(.)[1],
+               projectID = names(.)[2])
+    }) %>% 
+    mutate(sample_folder = str_extract(directory, 'Sample_.+$'),
+           fid = str_replace(sample_folder, 'Sample_',''),
+           fid = str_replace(fid, '_IGO_.+$','')) %>% 
+    mutate(sampleid = fid) %>% 
+    select(-sample_folder) %>% 
+    select(directory, projectID, sampleid, fid) %>% 
+    distinct(sampleid, .keep_all = T)
+}
+
+new <- new_shotgun_sample_tb('/Volumes/vandenBrinkLab/deep_sequencing','Project_10754') 
+```
+
+```{r}
+# 2020-12-7
+# look at the castori table from Emily
+length(intersect(castori_proj$Sample.ID, shotgun_lookup_ad$sampleid))
+length(setdiff(castori_proj$Sample.ID, shotgun_lookup_ad$sampleid))
+ 
+# to get the new samples that need to be uploaded and changed to the right format
+new_castori_samples <- castori_proj %>% 
+  distinct(Sample.ID, .keep_all = T) %>% 
+  filter(! Sample.ID %in% shotgun_lookup_ad$sampleid) %>% 
+  filter(!str_detect(Sample.ID, '^DP'))   # already included in the current lookup table without dot in the sampleid
+
+
+new_castori_df <- new_castori_samples %>%   
+  mutate(PI_name = str_replace(...6, ' server','')) %>% 
+  mutate(server = str_glue('/Volumes/{PI_name}/FASTQ/')) %>% 
+  distinct(server, iGO.Project.Number) %>% 
+  rename(dir = server, projectid = iGO.Project.Number)
+
+new <- purrr::pmap_dfr(new_castori_df, function(projectid, dir){
+    new_shotgun_sample_tb(projectid, dir)
+  })
+
+new %>% 
+  write_csv('/Volumes/vandenbrinklab/Angel_Dai/Full_human_shotgun_catalog/shotgun_update_1207.csv')
+
+
+new_castori_samples %>% 
+  dplyr::count(iGO.Project.Number) # one in Project_10799 didn't actually return the file
+
+```
+
+
+```{r}
+# update it to the db
+#sometimes it doesn't work you just need to restart R and run it again 
+
+# change the d_set_input in the upload_data_from_query_OTU_AD.R script to the new file that is saved above
+source('../../../microbiome_db/SQL/scripts/upload_data_from_query_OTU_AD.R')
+upload_data_from_query_OTU(1) # changed the file path of the table getting uploaded 
+```
+
+
