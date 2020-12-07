@@ -1,0 +1,37 @@
+---
+title: "check if some samples are already on the cluster"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+cur <- read_delim('../data/ls_all_samps.txt', delim = ' ', skip = 1, col_names = F) %>% 
+  filter(str_detect(X9, 'Sample'))
+
+chi <- read_csv('../data/enterococcus_shotgun_lookup_list.csv')  %>% 
+  mutate(sample_folder = str_extract(directory, 'Sample_.+$'))
+
+length(intersect(cur$X9, chi$sample_folder))
+
+setdiff(chi$sample_folder, cur$X9 )
+
+```
+
+```{r}
+# the current shotgun lookup table 
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database('shotgun_lookup_ad')
+
+# the ones in the doris project
+doris <- shotgun_lookup_ad %>% 
+  filter(str_detect(directory, 'ponced'))
+```
+

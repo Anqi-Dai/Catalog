@@ -18,8 +18,11 @@ castori_proj <- read_excel('/Volumes/castoricenter/Human.Sequencing.Data/Human.S
   # there are pending samples that are currently being sequenced
   filter(`Shotgun.Sequenced` == 'yes') %>% 
   distinct(`iGO.Project.Number`) %>% 
-  pull(`iGO.Project.Number`)  
+  pull(`iGO.Project.Number`)
+```
 
+
+```{r}
 # Gabe  
 vdb_proj <- read_excel('../data/VDB.Human.Shotgun.Sequenced.xlsx') %>% 
   transmute(iGO_Project_Number = `iGO.Project.Number`)  %>% 
@@ -48,10 +51,13 @@ other_proj <- c('/Volumes/smithm4/FASTQ/','/Volumes/peledj/FASTQ/', '/Volumes/po
   pull(iGO_Project_Number)
 
 
+
 # all the unique project ID numbers 
-all_proj <- unique(c(castori_proj, vdb_proj, annie_proj, other_proj))
+all_proj <- unique(c(castori_proj, vdb_proj, annie_proj, other_proj, cart))
   
 ```
+
+
 
 ## Retrieve the file path of the samples from servers
 
@@ -81,6 +87,7 @@ ALL <- servers %>%
          fid = str_replace(sample_folder, 'Sample_',''),
          fid = str_replace(fid, '_IGO_.+$','')) %>% 
   distinct(sample_folder, .keep_all = T)
+
 ```
 
 ## Create the sampleid from the sample_folder and clean the FMT sampleid here
@@ -212,6 +219,44 @@ read_csv('~/projects/Doris/analysis/data/shotgun_lookup.csv') %>%
   kable_styling(full_width = F, position = 'left')
 ```
 
+## the newly added since 2019 Nov
+
+```{r}
+# 2020-11-12
+# the shotgun from italy and upenn in the CART project
+cart <- c('Project_11341','Project_11038')
+cart <- c('Project_11038')
+
+cart2 <- tibble(
+  folder = '/Volumes/vandenBrinkLab/deep_sequencing'
+)
+
+cart2_files <- cart2 %>% 
+  pull(folder) %>% 
+  map_dfr(function(f){
+    cart %>% 
+      set_names(cart) %>% 
+      imap_dfr( ~ Sys.glob(str_glue('{f}/{..1}/*/*')) %>% 
+             data_frame %>% 
+              mutate(..2)) %>% 
+      rename(directory = names(.)[1],
+             projectID = names(.)[2])
+  }) %>% 
+  mutate(sample_folder = str_extract(directory, 'Sample_.+$'),
+         fid = str_replace(sample_folder, 'Sample_',''),
+         fid = str_replace(fid, '_IGO_.+$','')) 
+
+# duplicated sample folders??
+dups <- cart2_files %>% 
+  filter(duplicated(sample_folder))
+
+dups %>% 
+  write_csv('../data/duplicated_samples_from_italy_cohort.csv')
+
+cart2_files %>% 
+  write_csv('../data/full_project_11308_files.csv')
+```
+
 
 
 ```{r}
@@ -227,4 +272,47 @@ shotgun_lookup_ad %>%
   write_csv('../data/Chen_request.csv')
 
 ```
+
+
+```{r}
+# the several samples in the IL22 of Doris project 
+project <- 'Project_11280'
+doris_new <-  '/Volumes/ponced/FASTQ/' %>% 
+  map_dfr(function(f){
+    project %>% 
+      set_names(project) %>% 
+      imap_dfr( ~ Sys.glob(str_glue('{f}/{..1}/*/*')) %>% 
+             data_frame %>% 
+              mutate(..2)) %>% 
+      rename(directory = names(.)[1],
+             projectID = names(.)[2])
+  }) %>% 
+  mutate(sample_folder = str_extract(directory, 'Sample_.+$'),
+         fid = str_replace(sample_folder, 'Sample_',''),
+         fid = str_replace(fid, '_IGO_.+$','')) %>% 
+  mutate(sampleid = fid) %>% 
+  select(-sample_folder) %>% 
+  select(directory, projectID, sampleid, fid)
+
+cart <- files %>% 
+  select(directory, projectID, sampleid, fid)
+  
+
+new  <- bind_rows(
+  cart,
+  doris_new
+)
+
+new %>% 
+  write_csv('/Volumes/vandenbrinklab/Angel_Dai/Full_human_shotgun_catalog/shotgun_update_1204.csv')
+  
+
+source('../../../microbiome_db/SQL/scripts/upload_data_from_query_OTU_AD.R')
+upload_data_from_query_OTU(1) # changed the file path of the table getting uploaded
+
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database('shotgun_lookup_ad')
+```
+
 
