@@ -53,7 +53,7 @@ new_shotgun_sample_tb <- function(projectid_, dir_){
     distinct(sampleid, .keep_all = T)
 }
 
-new <- new_shotgun_sample_tb('/Volumes/vandenBrinkLab/deep_sequencing','Project_10754') 
+
 ```
 
 ```{r}
@@ -86,6 +86,24 @@ new %>%
 new_castori_samples %>% 
   dplyr::count(iGO.Project.Number) # one in Project_10799 didn't actually return the file
 
+```
+
+```{r}
+# 2020-12-8 the new samples from italy and upenn
+two <- new_shotgun_sample_tb('Project_11453', '/Volumes/smithm4/FASTQ/') 
+
+two %>% 
+  write_csv('/Volumes/vandenbrinklab/Angel_Dai/Full_human_shotgun_catalog/shotgun_update_1208.csv')
+
+file.edit('../../../microbiome_db/SQL/scripts/upload_data_from_query_OTU_AD.R')
+```
+
+```{r}
+# 2020-12-8 fixing the mislabelled samples in 10754 by uploading the vdb server version of it
+fix <- new_shotgun_sample_tb('Project_10754', '/Volumes/vandenBrinkLab/deep_sequencing')
+
+fix %>% 
+  write_csv('/Volumes/vandenbrinklab/Angel_Dai/Full_human_shotgun_catalog/shotgun_update_1208.csv')
 ```
 
 
