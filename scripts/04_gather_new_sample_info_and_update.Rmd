@@ -15,7 +15,7 @@ A function to get new shotgun sample info and then update the lookup table
 
 ```{r}
 # the current shotgun lookup table 
-source('~/db_connect_simple.R')
+library(vdbR)
 connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database('shotgun_lookup_ad')
 ```
@@ -105,6 +105,27 @@ fix <- new_shotgun_sample_tb('Project_10754', '/Volumes/vandenBrinkLab/deep_sequ
 fix %>% 
   write_csv('/Volumes/vandenbrinklab/Angel_Dai/Full_human_shotgun_catalog/shotgun_update_1208.csv')
 ```
+
+```{r}
+# 2021-3-9 the 500 samples from Oriana batch
+# trying to see if the fid is the sampleid 
+list_table_from_database('castori')
+get_table_from_database('samples_castori_ag')
+
+O <- new_shotgun_sample_tb('Project_11592', '/Volumes/vandenbm/FASTQ/') 
+
+O_list <- O %>% 
+  split(.$sampleid %in% samples_castori_ag$sampleid)
+
+fix <- O_list %>% 
+  pluck('FALSE') %>% 
+  mutate(sampleid = str_replace(sampleid, 'FMT','FMT.'))
+# there is two remaining ones that needs to be confirmed 
+
+
+
+```
+
 
 
 ```{r}

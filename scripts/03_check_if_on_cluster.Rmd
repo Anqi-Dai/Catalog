@@ -9,6 +9,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(vdbR)
+connect_database('~/dbConfig.txt')
 ```
 
 ```{r}
@@ -22,6 +24,14 @@ length(intersect(cur$X9, chi$sample_folder))
 
 setdiff(chi$sample_folder, cur$X9 )
 
+chi %>% 
+  select(fid) %>% 
+  distinct(fid) %>% 
+  write_csv('../data/chi_shotgun_list.csv', col_names = F)
+
+
+task <- chi %>% 
+  distinct(sampleid)
 ```
 
 ```{r}
