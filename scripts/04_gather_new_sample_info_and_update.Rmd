@@ -119,13 +119,54 @@ O_list <- O %>%
 
 fix <- O_list %>% 
   pluck('FALSE') %>% 
-  mutate(sampleid = str_replace(sampleid, 'FMT','FMT.'))
-# there is two remaining ones that needs to be confirmed 
+  mutate(sampleid = str_replace(sampleid, 'FMT','FMT.'),
+         sampleid = str_replace(sampleid, '^0','')) 
+
+# double check if they are now all the correct sampleid
+fix %>% 
+  filter(sampleid %in% samples_castori_ag$sampleid) %>% 
+  nrow
+
+O_fix <- bind_rows(
+  O_list %>% pluck('TRUE'),
+  fix
+) %>% 
+  filter(!sampleid %in% shotgun_lookup_ad$sampleid) %>% 
+  # remove one duplicate that is 0116E
+  arrange(sampleid, desc(fid)) %>% 
+  distinct(sampleid, .keep_all = T)
 
 
+O_fix %>% 
+  write_csv('../data/Oriana_480_update.csv')
 
+# write out a script that I can rsync to cluster 
+shotgun_lookup_ad %>% 
+  filter(projectid == 'Project_11592') %>% 
+  mutate(cmd = str_glue('rsync --progress --partial -avz {directory} daia1@lilac.mskcc.org:~/my_workdir/samples')) %>% 
+  select(cmd) %>% 
+  write_csv('../data/O480_rsync.sh', col_names = F)
+
+# only get the fid of these 480 samples 
+samples <- read_csv('../data/Oriana_480_update.csv') %>% 
+  select(fid) %>% 
+  write_csv('../data/Oriana_480_fid.csv', col_names = F)
+  
 ```
 
+```{r}
+# Arielle shotgun samples
+a <- readxl::read_excel('../data/FMT_case_series_sample_IDs.xlsx') %>% 
+  mutate(fid = str_replace_all(sampleid, '\\.','_')) %>% 
+  mutate(fid = str_replace(fid, 'VDB','vdB'))
+
+a %>% 
+  write_csv('../data/FMT_case_series_sample_IDs_match_fid.csv')
+
+a %>% 
+  select(fid) %>% 
+  write_csv('../data/Arielle_fid.csv', col_names = F)
+```
 
 
 ```{r}
@@ -133,7 +174,7 @@ fix <- O_list %>%
 #sometimes it doesn't work you just need to restart R and run it again 
 
 # change the d_set_input in the upload_data_from_query_OTU_AD.R script to the new file that is saved above
-source('../../../microbiome_db/SQL/scripts/upload_data_from_query_OTU_AD.R')
+# run the script upload_data_from_query_OTU_AD.R
 upload_data_from_query_OTU(1) # changed the file path of the table getting uploaded 
 ```
 

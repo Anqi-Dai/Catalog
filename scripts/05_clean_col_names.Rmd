@@ -1,0 +1,31 @@
+---
+title: "Clean file name in the humann3 output"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('shotgun_lookup_ad')
+
+patb <- read_tsv('~/pipeline/scripts/shotgun_pipeline/data/humann3_table/humann3_pathabundance_cpm_unstratified.tsv') %>% 
+  rename_all(~ gsub("_humann3", "", .)) %>% 
+  rename_all(~ gsub("^# ", "", .)) %>% 
+  gather('fid','cpm', names(.)[2]:names(.)[ncol(.)]) %>% 
+  left_join(shotgun_lookup_ad %>% distinct(sampleid, fid)) %>% 
+  select(-fid)
+
+patb %>% 
+  write_csv('~/pipeline/scripts/shotgun_pipeline/data/humann3_table/humann3_pathabundance_cpm_unstratified_480.csv')
+```
+
+
+
