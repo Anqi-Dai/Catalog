@@ -18,6 +18,8 @@ A function to get new shotgun sample info and then update the lookup table
 library(vdbR)
 connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database('shotgun_lookup_ad')
+get_table_from_database('samples_castori_ag')
+
 ```
 
 **BE SURE TO CONNECT TO ALL SERVERS BEFORE LOOKING FOR ANYTHING!!!!!**
@@ -166,6 +168,52 @@ a %>%
 a %>% 
   select(fid) %>% 
   write_csv('../data/Arielle_fid.csv', col_names = F)
+
+arielle <- tibble(
+  directory = Sys.glob('/Volumes/castoricenter/Human.Sequencing.Data/ShotgunSeq/Hiseq.36/*'),
+  projectID = 'Project_11606'
+) %>% 
+  mutate(sample_folder = str_extract(directory, 'Sample_.+$'),
+           fid = str_replace(sample_folder, 'Sample_',''),
+           fid = str_replace(fid, '_IGO_.+$','')) %>% 
+  mutate(sampleid = fid) %>% 
+  select(-sample_folder) %>% 
+  mutate(sampleid = str_replace_all(fid, '_','\\.')) %>% 
+  mutate(sampleid = str_replace(sampleid, 'vdB.FMT','VDB.FMT')) %>% 
+  select(directory, projectID, sampleid, fid)
+length(intersect(arielle$sampleid, a$sampleid))
+
+
+```
+
+
+```{r}
+# my new shotgun samples
+me <- new_shotgun_sample_tb('Project_11862', '/Volumes/vandenbm/FASTQ/') 
+
+# out put the fid to the cluster
+me %>% 
+  select(fid) %>% 
+  write_csv('../data/me_nutrition.csv', col_names = F)
+
+
+# clean the sampleid so that it could be added to the shotgun lookup table
+me_u <- me %>% 
+  mutate(sampleid = str_replace(sampleid, 'FMT_','FMT.'))
+length(intersect(me_u$sampleid, samples_castori_ag$sampleid))
+```
+
+```{r}
+# 2021-4-20 Sarah's mouse data
+sarah <- new_shotgun_sample_tb('Project_11861', '/Volumes/vandenbm/FASTQ/') 
+```
+```{r}
+# all together 2021-4-20 to be updated 
+today <- bind_rows(
+  sarah, arielle, me_u
+)
+today %>% 
+  write_csv('../data/new_20210420.csv')
 ```
 
 

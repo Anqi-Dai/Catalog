@@ -45,3 +45,66 @@ doris <- shotgun_lookup_ad %>%
   filter(str_detect(directory, 'ponced'))
 ```
 
+
+# Marina's samples
+
+```{r}
+m <- read_csv('../data/Marina Extra shotgun samples for humann3- Doris.csv') %>% 
+  distinct(`Samples that are in lookup_ag`)
+
+# find out the full folder and the server of those samples 
+marina <- shotgun_lookup_ad %>%
+  distinct(sampleid, .keep_all = T) %>% 
+  filter(sampleid %in% m$`Samples that are in lookup_ag`)  %>% 
+  mutate(samplefolder = str_extract(directory, 'Sample_.+$'))
+
+setdiff( m$`Samples that are in lookup_ag`, marina$sampleid)
+  
+# things that are currently on lilac
+lilac <- read_delim('../data/samples.txt', delim = ' ', skip = 1, col_names = F)  %>% 
+  mutate(fid = str_replace(X9, 'Sample_',''),
+         fid = str_replace(fid, '_IGO_.+$',''))
+
+length(intersect(lilac$fid, marina$fid))# already on lilac and also in marina list 
+
+# the ones that need to be uploaded
+new <- marina %>% 
+  filter(!fid %in% lilac$fid)
+
+new %>% 
+  count(projectid)  
+# Project_07051_C and Project_07976
+```
+```{r}
+# there are Oriana and Hana's samples need to be processed 2021-4-21
+Oriana <- read_csv('~/Downloads/samples_humann3.csv')
+Hana <- read_csv('~/Downloads/shotgun_old.csv')
+two <- union(Oriana$sampleid, Hana$sampleid)
+current <- read_delim('../data/current_samples.txt', delim = ' ', skip = 1, col_names = F)  %>% 
+  mutate(fid = str_replace(X9, 'Sample_',''),
+         fid = str_replace(fid, '_IGO_.+$',''))
+two_df <- shotgun_lookup_ad %>% 
+  filter(sampleid %in% two) %>% 
+  distinct(sampleid, .keep_all = T)
+length(intersect(two_df$fid, current$fid))
+
+need <- two_df %>% 
+  filter(!fid %in% current$fid) %>% 
+  ungroup() %>% 
+  count(projectid)
+```
+
+```{r}
+# gosh I need to figure out the samples that need to be run
+hnew <- read_csv('~/Downloads/shotgun_old_all_samples.csv')
+all4 <- union(two, hnew$sampleid)
+all <- union(all4, marina$sampleid)
+toberun <- shotgun_lookup_ad %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  filter(sampleid %in% all) 
+
+toberun %>% 
+  select(fid) %>% 
+  write_csv('../data/new_huge.csv', col_names = F)
+```
+
