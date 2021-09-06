@@ -1,0 +1,78 @@
+---
+title: "update the 16s qpcr table"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('qpcr_16s_ag')
+get_table_from_database('asv_alpha_diversity_ag')
+get_table_from_database('samples_castori_ag')
+list_table_from_database('castori')
+```
+
+```{r}
+# the table from Emily
+current <- readxl::read_excel('../data/CMIC_16SqPCR_results_5142021.xlsx') %>% 
+  rename(sample_id_unique = SAMPLE_ID,
+         copy_number_16s = `16S_COPYNUMBER`,
+         copies_16s_per_g = `16S_COPIES/g`) %>% 
+  mutate(comments = if_else(str_detect(copies_16s_per_g, 'missing weight'), 'missing weight', '')) %>%
+  mutate(copies_16s_per_g = as.numeric(copies_16s_per_g)) %>% 
+  mutate(sample_id = str_replace(sample_id_unique, '_.+$', '')) %>% 
+  # clean some misspelled sampleid in the emily table
+  mutate(sample_id = str_replace(sample_id, 'FMT\\. ', 'FMT\\.'),
+         sample_id = str_replace(sample_id, '1FMT', 'FMT'),
+         sample_id = str_replace(sample_id, 'FMt', 'FMT'),
+         sample_id = str_replace(sample_id, 'FMT.00117H', 'FMT.0117H'),
+         sample_id = str_replace(sample_id, 'FMT.00126HH', 'FMT.0126HH'),
+         sample_id = str_replace(sample_id, 'FMT.00147AA', 'FMT.0147AA'),
+         sample_id = str_replace(sample_id, 'FMT.011A', 'FMT.0011A')) %>% 
+  mutate(sample_id = str_replace(sample_id, '1873$', '1873M'),
+         sample_id = str_replace(sample_id, '1882$', '1882C')) %>% 
+  select(sample_id, copy_number_16s:copies_16s_per_g, comments, sample_id_unique)
+
+
+
+# ok I need to find all the dulicated ones ....
+current_duplicated  <- current %>% 
+  filter(duplicated(current$sample_id_unique)) %>% 
+  distinct(sample_id_unique) %>% 
+  pull(sample_id_unique)
+
+current_duplicated_all <- current %>% 
+  filter(sample_id_unique %in% current_duplicated) %>% 
+  arrange(sample_id_unique)
+
+current_duplicated_all %>% 
+  write_csv('../data/Emily_16s_qpcr_ones_that_have_duplicates.csv')
+
+# for now remove the ones that ever have any duplication
+current2 <- current %>% 
+  filter(!sample_id_unique %in% current_duplicated)
+
+
+current2 %>% 
+  write_csv('../data/Emily_16s_qpcr_0514_cleaned.csv')
+# check which ones need to correct the sampleid 
+#setdiff(current$sample_id, samples_castori_ag$sampleid)
+
+meta <- read_csv('~/pipeline/scripts/food_tree/data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+length(intersect(meta$sampleid, current2$sample_id))
+```
+
+```{r}
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('shotgun_lookup_ad')
+```
+

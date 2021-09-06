@@ -11,6 +11,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(vdbR)
 connect_database('~/dbConfig.txt')
+get_table_from_database('asv_counts_ag', pre_filter = F)
+get_table_from_database('asv_alpha_diversity_ag')
+get_counts_subset( c('11.tp.02'))
+get_table_from_database('asv_sequences_ag')
 ```
 
 ```{r}
@@ -32,6 +36,8 @@ chi %>%
 
 task <- chi %>% 
   distinct(sampleid)
+
+get_
 ```
 
 ```{r}
@@ -74,6 +80,12 @@ new <- marina %>%
 new %>% 
   count(projectid)  
 # Project_07051_C and Project_07976
+
+# only marina
+marina %>% 
+  select(fid) %>% 
+  write_csv('../data/only_marina.csv', col_names = F)
+
 ```
 ```{r}
 # there are Oriana and Hana's samples need to be processed 2021-4-21
@@ -92,6 +104,14 @@ need <- two_df %>%
   filter(!fid %in% current$fid) %>% 
   ungroup() %>% 
   count(projectid)
+
+only <- shotgun_lookup_ad %>% 
+  filter(sampleid %in% Oriana$sampleid) %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  select(fid)
+only %>% 
+  write_csv('../data/Oriana_old_only.csv', col_names = F)
+
 ```
 
 ```{r}
@@ -106,5 +126,31 @@ toberun <- shotgun_lookup_ad %>%
 toberun %>% 
   select(fid) %>% 
   write_csv('../data/new_huge.csv', col_names = F)
+```
+
+```{r}
+#2021-08-31 for chi
+# things that are currently on lilac
+lilac <- read_delim('../../MSS_pipeline-/scripts/shotgun_pipeline/data/current.txt', delim = ' ', skip = 1, col_names = F)  %>% 
+  mutate(fid = str_replace(X9, 'Sample_',''),
+         fid = str_replace(fid, '_IGO_.+$',''))
+chi <- read_csv('../../MSS_pipeline-/scripts/shotgun_pipeline/data/shotgun_fid_for_transition_state_project.csv') %>% 
+  arrange(sampleid, projectid) %>% 
+  distinct(sampleid, .keep_all = T)
+
+length(intersect(lilac$fid, chi$fid))
+
+
+miss <- setdiff(chi$fid,lilac$fid )
+
+mis <- shotgun_lookup_ad %>% 
+  filter(fid %in% miss)
+
+
+
+all <- tibble(fid = intersect(lilac$fid, chi$fid))
+split(all, (as.numeric(rownames(all))-1) %/% 300) %>% 
+  imap(~ write_csv(x = .x, str_glue('../../MSS_pipeline-/scripts/shotgun_pipeline/data/chi{.y}.csv'), col_names = F))
+
 ```
 
