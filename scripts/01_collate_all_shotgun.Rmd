@@ -7,7 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(readxl)
-library(kableExtra)
+
 ```
 
 ## Gather project ID number from different spreadsheets
@@ -261,7 +261,7 @@ cart2_files %>%
 
 ```{r}
 # checking whether a list of samples are already shotgun sequenced. 
-source('~/db_connect_simple.R')
+library(vdbR)
 connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database('shotgun_lookup_ad')
 samps <- read_table('~/Downloads/samples.txt', col_names = F)
@@ -315,4 +315,52 @@ connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database('shotgun_lookup_ad')
 ```
 
+```{r}
+# 2021-10-14
+# check the overlap between the projects in the lookup table and Emily's
+me <- shotgun_lookup_ad %>% 
+  distinct(projectid) %>% 
+  pull(projectid)
+
+emily <- c(castori_proj %>% 
+             filter(!is.na(iGO.Project.Number)) %>% 
+             distinct(iGO.Project.Number) %>% 
+  pull(iGO.Project.Number),
+  castori_proj %>% 
+             filter(!is.na(`Comments:`)) %>% 
+    mutate(projectid = str_extract(`Comments:`, 'Project.+$')) %>% 
+    filter(!is.na(projectid)) %>% 
+    distinct(projectid) %>% 
+  pull(projectid))
+
+length(intersect(me, emily))
+
+castori_proj %>% 
+             filter(!is.na(`Comments:`)) %>% 
+  distinct(`Comments:`)
+
+setdiff(emily, me)
+```
+
+
+```{r}
+# what I need to add are 12340 ones and 11606 ones 
+# they are copied by Emily to some place the original data structure is disrupted
+new2 <- bind_rows(
+  tibble(
+  directory = Sys.glob(str_glue('/Volumes/castoricenter/Human.Sequencing.Data/ShotgunSeq/Hiseq.36/*')) 
+),
+tibble(directory = Sys.glob('/Volumes/cmiclab/Sequencing.Data/VanDenBrink_LAB/Human_Shotgun_Data/*'))
+) %>% 
+  mutate(projectid = str_glue('Project_{str_extract(directory, "IGO_.....")}')) %>% 
+  mutate(projectid = str_replace(projectid, 'IGO_','')) %>% 
+  mutate(sample_folder = str_extract(directory, 'Sample_.+$'),
+         sampleid = str_replace(sample_folder, 'Sample_',''),
+          sampleid = str_replace(sampleid, '_IGO_.+$','')) %>% 
+  mutate(fid = sampleid) %>% 
+  mutate(sampleid = str_replace(sampleid, '_complete$', '')) %>% 
+  select(directory, projectid, sampleid, fid)
+new2 %>% 
+  write_csv('../data/new_20211014.csv')
+```
 
