@@ -68,11 +68,19 @@ current2 %>%
 
 meta <- read_csv('~/pipeline/scripts/food_tree/data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 length(intersect(meta$sampleid, current2$sample_id))
+
+qpcr_16s_ag
 ```
 
 ```{r}
-library(vdbR)
-connect_database('~/dbConfig.txt')
-get_table_from_database('shotgun_lookup_ad')
+today <- readxl::read_excel('~/Downloads/MSK/MSS_pipeline-/scripts/food_tree/data/growth/Angel_qPCR.xlsx') %>% 
+  select(sample_id = Sample.ID, 
+         copy_number_16s = `16S COPY NUMBER`,
+         copies_16s_per_g = `16S COPIES/G`,
+         comments  = Comments,
+         sample_id_unique = Sample.ID)
+
+today %>% 
+  write_csv('../data/qpcr_20211020.csv')
 ```
 

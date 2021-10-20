@@ -362,5 +362,7 @@ tibble(directory = Sys.glob('/Volumes/cmiclab/Sequencing.Data/VanDenBrink_LAB/Hu
   select(directory, projectid, sampleid, fid)
 new2 %>% 
   write_csv('../data/new_20211014.csv')
+
+
 ```
 
